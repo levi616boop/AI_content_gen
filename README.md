@@ -29,6 +29,7 @@ To create an end-to-end automated system that transforms educational source mate
 9. **Technician Agent**: Monitors and troubleshoots the system
 
 ## Project Structure
+```
 .
 ├── src/
 │   ├── ingestion_engine/
@@ -130,8 +131,9 @@ python -m venv venv
 source venv/bin/activate  # Linux/Mac
 venv\Scripts\activate    # Windows
 ```
+
 3. Install dependencies:
-bash
+```bash
 
     pip install -r requirements.txt
 
