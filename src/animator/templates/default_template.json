@@ -1,0 +1,62 @@
+{
+    "metadata": {
+        "template_name": "default_educational",
+        "version": "1.0",
+        "author": "AutoEd AI"
+    },
+    "visual_mappings": {
+        "headline": {
+            "visual_type": "text_overlay",
+            "style": {
+                "font": "Arial",
+                "size": 72,
+                "color": "#FFFFFF",
+                "background": "#2E86AB",
+                "position": "top_center"
+            },
+            "animation": {
+                "entry": "fade_in",
+                "exit": "fade_out",
+                "duration": 2.0
+            }
+        },
+        "key_concept": {
+            "visual_type": "bullet_points",
+            "style": {
+                "font": "Helvetica",
+                "size": 48,
+                "color": "#FFFFFF",
+                "background": "#333333",
+                "max_points": 3,
+                "point_color": "#F18F01"
+            },
+            "animation": {
+                "entry": "slide_up",
+                "exit": "shrink",
+                "duration": 3.0
+            }
+        },
+        "example": {
+            "visual_type": "side_by_side",
+            "style": {
+                "text_width": 0.4,
+                "image_width": 0.5,
+                "gap": 0.1
+            },
+            "animation": {
+                "entry": "zoom_in",
+                "exit": "zoom_out"
+            }
+        },
+        "transition": {
+            "default": {
+                "type": "fade",
+                "duration": 1.0
+            },
+            "section_change": {
+                "type": "slide_right",
+                "duration": 1.5
+            }
+        }
+    }
+}
