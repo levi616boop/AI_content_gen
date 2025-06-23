@@ -122,7 +122,7 @@ To create an end-to-end automated system that transforms educational source mate
 ## Setup Instructions
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/educational-content-ai.git
+   git clone https://github.com/levi616boop/AI_content_gen/blob/main/README.md
    cd educational-content-ai
 2. Create and activate a virtual environment:
 ```bash
