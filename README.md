@@ -136,12 +136,12 @@ venv\Scripts\activate    # Windows
 ```bash
 
     pip install -r requirements.txt
+```
+ Set up configuration:
 
-    Set up configuration:
+   Copy .env.template to .env and fill in your API keys
 
-        Copy .env.template to .env and fill in your API keys
-
-        Copy src/utils/api_keys.py.template to src/utils/api_keys.py and fill in
+   opy src/utils/api_keys.py.template to src/utils/api_keys.py and fill in
 
 ##Usage:
 
