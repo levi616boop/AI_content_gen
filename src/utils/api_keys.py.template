@@ -1,0 +1,38 @@
+# API KEYS CONFIGURATION TEMPLATE
+# 
+# IMPORTANT:
+# 1. Rename this file to api_keys.py
+# 2. Fill in your actual API keys
+# 3. NEVER commit this file to version control!
+# 4. Add api_keys.py to your .gitignore file
+
+# AI Services
+OPENAI_API_KEY = "your_openai_api_key_here"  # For script generation
+ELEVENLABS_API_KEY = "your_elevenlabs_api_key_here"  # For voice generation
+STABILITY_API_KEY = "your_stability_api_key_here"  # For image/animation generation
+
+# Video Platforms
+YOUTUBE_API_KEY = "your_youtube_api_key_here"
+YOUTUBE_CLIENT_SECRETS = "your_youtube_client_secrets_path.json"
+TIKTOK_API_KEY = "your_tiktok_api_key_here"
+INSTAGRAM_API_KEY = "your_instagram_api_key_here"
+
+# Content Management
+CONTENT_DB_API_KEY = "your_content_database_key_here"
+CONTENT_DB_URL = "your_content_database_url_here"
+
+# Web Services
+GOOGLE_API_KEY = "your_google_api_key_here"  # For web searches
+SCRAPERAPI_KEY = "your_scraper_api_key_here"  # For web scraping
+
+# Monitoring
+SENTRY_DSN = "your_sentry_dsn_here"  # For error tracking
+
+# Storage
+AWS_ACCESS_KEY_ID = "your_aws_access_key_id"
+AWS_SECRET_ACCESS_KEY = "your_aws_secret_access_key"
+S3_BUCKET_NAME = "your_s3_bucket_name"
+
+# Security Note:
+# For production environments, consider using a secrets manager instead of hardcoded keys.
+# Environment variables can also be used as an alternative storage method.
