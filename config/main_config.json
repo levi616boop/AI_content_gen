@@ -1,0 +1,40 @@
+{
+  "base_settings": {
+    "base_data_path": "./data",
+    "log_level": "INFO",
+    "output_video_resolution": "1080p",
+    "default_script_length_seconds": 60,
+    "max_retries": 3,
+    "retry_delay_seconds": 5,
+    "enable_quality_checks": true
+  },
+  "paths": {
+    "ingestion_output_dir": "processed/ingestion",
+    "script_output_dir": "processed/scripts",
+    "animation_output_dir": "processed/animations",
+    "voice_output_dir": "processed/voices",
+    "subtitle_output_dir": "processed/subtitles",
+    "final_videos_dir": "output/final_videos",
+    "temp_dir": "temp"
+  },
+  "defaults": {
+    "animation_template": "default_template.json",
+    "voice_profile": "professional_male",
+    "subtitle_language": "en",
+    "output_format": "mp4"
+  },
+  "module_specific": {
+    "ingestion_engine": {
+      "timeout_seconds": 30,
+      "max_file_size_mb": 50
+    },
+    "script_generator": {
+      "llm_model": "gpt-4",
+      "temperature": 0.7
+    },
+    "animator": {
+      "fps": 30,
+      "default_transition": "fade"
+    }
+  }
+}
