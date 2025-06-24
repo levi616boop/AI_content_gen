@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 import argparse
 import json
-import logging
 import sys
 from pathlib import Path
-from typing import Optional, Dict, Any
 from datetime import datetime
+from typing import Dict, Any
 
-# Import pipeline modules
+# Initialize environment variables first
+from src.utils.env_initializer import initialize_env
+if not initialize_env():
+    sys.exit(1)  # Exit if environment validation fails
+
+# Import pipeline modules after environment is validated
 from src.ingestion_engine.ingestion import IngestionEngine
 from src.script_generator.script_gen import ScriptGenerator
 from src.animator.animate import Animator
@@ -19,15 +23,8 @@ from src.content_manager.manager import ContentManager
 from src.technician_agent.technician import TechnicianAgent
 
 # Initialize logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
-    handlers=[
-        logging.FileHandler('data/logs/pipeline.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger("pipeline")
+from src.utils.logging_utils import setup_logger
+logger = setup_logger("pipeline")
 
 def load_config() -> Dict[str, Any]:
     """Load the main configuration file"""
@@ -40,20 +37,42 @@ def load_config() -> Dict[str, Any]:
         sys.exit(1)
 
 def initialize_modules(config: Dict[str, Any]) -> Dict[str, Any]:
-    """Initialize all pipeline modules"""
-    modules = {
-        "ingestion": IngestionEngine(),
-        "script_generator": ScriptGenerator(),
-        "animator": Animator(),
-        "voice_generator": VoiceGenerator(),
-        "video_composer": VideoComposer(),
-        "quality_control": QualityControl(),
-        "uploader": Uploader(),
-        "content_manager": ContentManager(),
-        "technician": TechnicianAgent()
-    }
-    logger.info("All pipeline modules initialized")
-    return modules
+    """Initialize all pipeline modules with configuration"""
+    try:
+        modules = {
+            "ingestion": IngestionEngine(),
+            "script_generator": ScriptGenerator(),
+            "animator": Animator(),
+            "voice_generator": VoiceGenerator(),
+            "video_composer": VideoComposer(),
+            "quality_control": QualityControl(),
+            "uploader": Uploader(),
+            "content_manager": ContentManager(),
+            "technician": TechnicianAgent()
+        }
+        logger.info("All pipeline modules initialized successfully")
+        return modules
+    except Exception as e:
+        logger.critical(f"Module initialization failed: {str(e)}")
+        sys.exit(1)
+
+def run_pipeline_stage(stage_name: str, func, *args, **kwargs) -> Any:
+    """Wrapper to run a pipeline stage with consistent error handling"""
+    logger.info(f"Starting stage: {stage_name}")
+    start_time = datetime.now()
+    
+    try:
+        result = func(*args, **kwargs)
+        if not result:
+            raise RuntimeError(f"{stage_name} returned no results")
+        
+        duration = (datetime.now() - start_time).total_seconds()
+        logger.info(f"Completed {stage_name} in {duration:.2f} seconds")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Stage {stage_name} failed: {str(e)}")
+        raise  # Re-raise to be caught by the main pipeline handler
 
 def run_full_pipeline(
     modules: Dict[str, Any],
@@ -62,7 +81,7 @@ def run_full_pipeline(
     topic: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Execute the full content generation pipeline
+    Execute the full content generation pipeline with robust error handling
     
     Args:
         modules: Dictionary of initialized modules
@@ -71,130 +90,135 @@ def run_full_pipeline(
         topic: Optional topic override
         
     Returns:
-        dict: Pipeline execution results
+        dict: Pipeline execution results and diagnostics
     """
     results = {
         "start_time": datetime.now().isoformat(),
         "stages": {},
-        "success": False
+        "success": False,
+        "error": None
     }
     
     try:
-        logger.info(f"Starting pipeline for {source_path} (type: {source_type})")
-        
         # 1. Ingestion
-        logger.info("Running ingestion...")
-        ingested_data = modules["ingestion"].process_source(source_path, source_type)
-        if not ingested_data:
-            raise RuntimeError("Ingestion failed")
+        ingested_data = run_pipeline_stage(
+            "ingestion",
+            modules["ingestion"].process_source,
+            source_path,
+            source_type
+        )
         results["stages"]["ingestion"] = {
             "output": ingested_data["metadata"]["source"],
             "success": True
         }
-        
+
         # 2. Script Generation
-        logger.info("Generating script...")
-        script_data = modules["script_generator"].generate_script(
-            ingested_data_json=ingested_data,
-            topic=topic
+        script_data = run_pipeline_stage(
+            "script_generation",
+            modules["script_generator"].generate_script,
+            ingested_data,
+            topic
         )
-        if not script_data:
-            raise RuntimeError("Script generation failed")
         results["stages"]["script_generation"] = {
             "output": script_data["metadata"]["source"],
             "success": True
         }
-        
+
         # 3. Animation
-        logger.info("Creating animation...")
-        animation_path = modules["animator"].process_script_for_animation(script_data)
-        if not animation_path:
-            raise RuntimeError("Animation failed")
+        animation_path = run_pipeline_stage(
+            "animation",
+            modules["animator"].process_script_for_animation,
+            script_data
+        )
         results["stages"]["animation"] = {
             "output": str(animation_path),
             "success": True
         }
-        
+
         # 4. Voice Generation
-        logger.info("Generating voiceover...")
-        voice_results = modules["voice_generator"].process_script(script_data)
-        if not voice_results or not voice_results["voiceover"]:
-            raise RuntimeError("Voice generation failed")
+        voice_results = run_pipeline_stage(
+            "voice_generation",
+            modules["voice_generator"].process_script,
+            script_data
+        )
         results["stages"]["voice_generation"] = {
             "output": str(voice_results["voiceover"]),
             "success": True
         }
-        
+
         # 5. Video Composition
-        logger.info("Composing final video...")
-        final_video_path = modules["video_composer"].merge_assets(
-            animation_mp4_path=animation_path,
-            voice_mp3_path=voice_results["voiceover"],
-            subtitles_srt_path=voice_results.get("subtitles")
+        final_video_path = run_pipeline_stage(
+            "video_composition",
+            modules["video_composer"].merge_assets,
+            animation_path,
+            voice_results["voiceover"],
+            voice_results.get("subtitles")
         )
-        if not final_video_path:
-            raise RuntimeError("Video composition failed")
         results["stages"]["video_composition"] = {
             "output": str(final_video_path),
             "success": True
         }
-        
+
         # 6. Quality Control
-        logger.info("Running quality control...")
-        qc_report_path = modules["quality_control"].generate_qc_report(
-            script_text=script_data["script"],
-            video_path=final_video_path
+        qc_report_path = run_pipeline_stage(
+            "quality_control",
+            modules["quality_control"].generate_qc_report,
+            script_data["script"],
+            final_video_path
         )
-        if not qc_report_path:
-            logger.warning("Quality control failed, but continuing pipeline")
-        else:
-            results["stages"]["quality_control"] = {
-                "output": str(qc_report_path),
-                "success": True
-            }
-        
+        results["stages"]["quality_control"] = {
+            "output": str(qc_report_path),
+            "success": qc_report_path is not None
+        }
+
         # 7. Upload
-        logger.info("Uploading content...")
-        upload_results = modules["uploader"].upload_all_platforms(
-            video_path=final_video_path,
-            script_json=script_data
+        upload_results = run_pipeline_stage(
+            "upload",
+            modules["uploader"].upload_all_platforms,
+            final_video_path,
+            script_data
         )
         results["stages"]["upload"] = {
             "output": {k: v is not None for k, v in upload_results.items()},
             "success": any(upload_results.values())
         }
-        
-        # Mark pipeline as successful
+
         results["success"] = True
         logger.info("Pipeline completed successfully")
-        
+
     except Exception as e:
-        logger.error(f"Pipeline failed: {str(e)}")
         results["error"] = str(e)
-        # Attempt to save partial results
-        if "stages" not in results:
-            results["stages"] = {}
-    
+        logger.error(f"Pipeline failed: {str(e)}")
+        
+        # Attempt to run diagnostics even after failure
+        try:
+            logger.info("Running diagnostic checks after pipeline failure")
+            modules["technician"].analyze_logs()
+            modules["technician"].generate_diagnostic_report()
+        except Exception as diag_error:
+            logger.error(f"Diagnostics failed: {str(diag_error)}")
+
     finally:
         results["end_time"] = datetime.now().isoformat()
         
-        # Run maintenance and analysis (even if pipeline failed)
+        # Always run maintenance and analysis
         try:
-            logger.info("Running content analysis...")
+            logger.info("Running content analysis and system diagnostics")
             modules["content_manager"].load_past_upload_data()
             modules["content_manager"].update_performance_metrics()
-            
-            logger.info("Running system diagnostics...")
             modules["technician"].analyze_logs()
             modules["technician"].generate_diagnostic_report()
         except Exception as e:
-            logger.error(f"Maintenance tasks failed: {str(e)}")
-        
+            logger.error(f"Post-pipeline tasks failed: {str(e)}")
+
         return results
 
 def parse_arguments():
-    """Parse command line arguments"""
-    parser = argparse.ArgumentParser(description="AutoEd Content Generation Pipeline")
+    """Parse command line arguments with improved validation"""
+    parser = argparse.ArgumentParser(
+        description="AutoEd Content Generation Pipeline",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument(
         "source_path",
         help="Path to source material (PDF, image, or URL)"
@@ -207,62 +231,87 @@ def parse_arguments():
     )
     parser.add_argument(
         "--topic",
-        help="Optional topic override"
+        help="Optional topic override for content"
     )
     parser.add_argument(
         "--schedule",
         help="Run on schedule (cron format), e.g. '0 9 * * *' for daily at 9AM"
     )
+    parser.add_argument(
+        "--env-file",
+        type=Path,
+        help="Custom path to .env file"
+    )
     return parser.parse_args()
 
-def main():
-    """Main entry point for the pipeline"""
-    args = parse_arguments()
-    config = load_config()
-    modules = initialize_modules(config)
+def print_summary(results: Dict[str, Any]):
+    """Print a user-friendly summary of the pipeline run"""
+    duration = (datetime.fromisoformat(results["end_time"]) - 
+               datetime.fromisoformat(results["start_time"]))
     
-    # Check if running on schedule
-    if args.schedule:
-        try:
-            from apscheduler.schedulers.blocking import BlockingScheduler
-            scheduler = BlockingScheduler()
-            
-            @scheduler.scheduled_job('cron', args.schedule)
-            def scheduled_run():
-                logger.info(f"Running scheduled pipeline for {args.source_path}")
-                results = run_full_pipeline(
-                    modules=modules,
-                    source_path=args.source_path,
-                    source_type=args.source_type,
-                    topic=args.topic
-                )
-                logger.info(f"Scheduled run completed: {results['success']}")
-            
-            logger.info(f"Starting scheduler with schedule: {args.schedule}")
-            scheduler.start()
-            
-        except ImportError:
-            logger.error("APScheduler not installed. Run 'pip install apscheduler' for scheduling.")
-        except Exception as e:
-            logger.error(f"Scheduler failed: {str(e)}")
-    else:
-        # Run once
-        results = run_full_pipeline(
-            modules=modules,
-            source_path=args.source_path,
-            source_type=args.source_type,
-            topic=args.topic
-        )
+    print("\n=== Pipeline Summary ===")
+    print(f"Status: {'SUCCESS' if results['success'] else 'FAILED'}")
+    print(f"Duration: {duration}")
+    
+    if results["error"]:
+        print(f"\nError: {results['error']}")
+    
+    print("\nStage Results:")
+    for stage, info in results["stages"].items():
+        status = "✓" if info["success"] else "✗"
+        print(f"{status} {stage.replace('_', ' ').title():<18} Output: {info.get('output', 'N/A')}")
+
+def main():
+    """Main entry point with comprehensive error handling"""
+    try:
+        args = parse_arguments()
+        config = load_config()
         
-        # Print summary
-        print("\nPipeline Summary:")
-        print(f"Success: {results['success']}")
-        print(f"Duration: {datetime.fromisoformat(results['end_time']) - datetime.fromisoformat(results['start_time'])}")
-        for stage, info in results['stages'].items():
-            print(f"{stage.replace('_', ' ').title()}: {'Success' if info['success'] else 'Failed'}")
+        # Initialize modules with configuration
+        modules = initialize_modules(config)
         
-        if not results['success']:
-            sys.exit(1)
+        # Handle scheduled runs
+        if args.schedule:
+            try:
+                from apscheduler.schedulers.blocking import BlockingScheduler
+                scheduler = BlockingScheduler()
+                
+                @scheduler.scheduled_job('cron', args.schedule)
+                def scheduled_run():
+                    logger.info(f"Running scheduled pipeline for {args.source_path}")
+                    results = run_full_pipeline(
+                        modules=modules,
+                        source_path=args.source_path,
+                        source_type=args.source_type,
+                        topic=args.topic
+                    )
+                    print_summary(results)
+                
+                logger.info(f"Starting scheduler with schedule: {args.schedule}")
+                print(f"Pipeline scheduler started. Press Ctrl+C to exit.")
+                scheduler.start()
+                
+            except ImportError:
+                logger.error("APScheduler not installed. Run: pip install apscheduler")
+                sys.exit(1)
+            except Exception as e:
+                logger.error(f"Scheduler failed: {str(e)}")
+                sys.exit(1)
+        else:
+            # Single run mode
+            results = run_full_pipeline(
+                modules=modules,
+                source_path=args.source_path,
+                source_type=args.source_type,
+                topic=args.topic
+            )
+            print_summary(results)
+            sys.exit(0 if results["success"] else 1)
+            
+    except Exception as e:
+        logger.critical(f"Fatal error in main execution: {str(e)}")
+        print(f"CRITICAL ERROR: {str(e)}", file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
